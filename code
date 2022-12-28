@@ -1,0 +1,136 @@
+-- just check/look the data
+
+select *
+from case1-372902.covid.CovidDeaths
+order by 3,4
+
+select *
+from case1-372902.covid.CovidVaccinations
+order by 4
+
+
+--select data need to use
+
+select location, date, total_cases, new_cases, total_deaths, population
+from case1-372902.covid.CovidDeaths
+order by 2
+
+
+-- cases vs. deaths
+-- infected death rate in China
+
+select location, date, total_cases, total_deaths, (total_deaths/total_cases)*100 as death_rate
+from case1-372902.covid.CovidDeaths
+where location like '%hin%'
+--where location = "China"
+order by 1,2
+
+
+-- cases vs. population
+-- infected rate in China
+
+select location, date, total_cases, population, (total_cases/population)*100 as infected_rate
+from case1-372902.covid.CovidDeaths
+where location like '%hin%'
+--where location = "China"
+order by 1,2
+
+
+-- country with highest infection rate
+
+select location, population,
+max(total_cases) as highest_infection,
+max((total_cases/population)*100) as highest_infected_rate
+from case1-372902.covid.CovidDeaths
+group by location, population
+order by 4 desc
+
+
+-- country with highest death
+
+select location, population,
+max(total_deaths) as total_death,
+max((total_deaths/population)*100) as highest_death_rate
+from case1-372902.covid.CovidDeaths
+where continent is not null
+group by location, population
+order by 3 desc
+
+
+-- death by continent summery
+
+select location, population,
+max(total_deaths) as total_death,
+max((total_deaths/population)*100) as population_death_rate
+from case1-372902.covid.CovidDeaths
+where continent is null
+group by location, population
+order by 3 desc
+
+
+-- data only with country data, no continent in location
+select *
+from case1-372902.covid.CovidDeaths
+where continent is not null
+
+
+-- highest death count country in each continent
+-- the problem is that I cant list out the location(country name) in the table
+
+select continent,
+max(population) as population,
+max(total_deaths) as total_death,
+max((total_deaths/population)*100) as population_death_rate
+from case1-372902.covid.CovidDeaths
+where continent is not null
+group by continent
+order by 3 desc
+
+-- try another way-----------------------------
+
+
+
+
+
+-- world total case and death
+
+select sum(new_cases) as total_cases,
+sum(new_deaths) as total_death,
+round(sum(new_deaths)/sum(new_cases)*100, 3) as death_rate
+
+from case1-372902.covid.CovidDeaths
+where continent is not null
+
+
+-- join table, total population vs. vaccination
+
+select dea.continent, dea.location, dea.date, dea.population, vac.new_vaccinations,
+sum(vac.new_vaccinations) over (partition by dea.location order by dea.location, dea.date) as rolling_total_vaccinaions
+
+from case1-372902.covid.CovidDeaths as dea
+join case1-372902.covid.CovidVaccinations as vac
+  on dea.location = vac.location
+  and dea.date = vac.date
+where dea.continent is not null
+order by 2,3
+
+-- add vac_pop rate
+select *, round((rolling_total_vaccinaions/population)*100,2) as vac_pop_rate
+from case1-372902.covid.line105_pop_vac
+
+
+-- bigquery can't perform this code, it only work on the formal SQL platform 
+
+with pop_vac (continent, location, date, population, new_vaccinations, rolling_total_vaccinaions) as
+(
+    select dea.continent, dea.location, dea.date, dea.population, vac.new_vaccinations,
+sum(vac.new_vaccinations) over (partition by dea.location order by dea.location, dea.date) as rolling_total_vaccinaions
+from case1-372902.covid.CovidDeaths as dea
+join case1-372902.covid.CovidVaccinations as vac
+  on dea.location = vac.location
+  and dea.date = vac.date
+where dea.continent is not null
+)
+slect * from pop_vac
+
+
